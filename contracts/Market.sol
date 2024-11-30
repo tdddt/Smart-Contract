@@ -81,4 +81,16 @@ contract Market {
         emit ItemBuyed(_id, msg.sender, item.price);
         emit ItemStatusChanged(_id, Status.InTransaction);
     }
+
+    // 구매 확정
+    function confirmItem(uint _id) public {
+        Item storage item = items[_id];
+        require(item.status == Status.InTransaction, "거래 중인 상태가 아닙니다.");
+        require(msg.sender == item.buyer, "구매자만 거래를 완료할 수 있습니다.");
+
+        payable(item.seller).transfer(item.price);
+        item.status = status.Completed;
+
+        emit ItemStatusChanged(_id, Status.Completed);
+    }
 }
