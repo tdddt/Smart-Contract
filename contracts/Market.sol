@@ -97,7 +97,7 @@ contract Market {
         require(msg.sender == item.buyer, "구매자만 거래를 완료할 수 있습니다.");
 
         payable(item.seller).transfer(item.escrow);
-        item.status = status.Completed;
+        item.status = Status.Completed;
 
         // 평점 등록
 
