@@ -2,13 +2,15 @@
 pragma solidity ^0.8.27;
 
 contract Market {
-    // 상품 상태 : 판매 중, 거래 중, 거래 완료, 환불, 분쟁 중
+    // 상품 상태 : 판매 중, 거래 중, 거래 완료, 환불 요청, 환불, 분쟁 중, 분쟁 종료
     enum Status {
         OnSale,
         InTransaction,
         Completed,
         Refunded,
-        Disputed
+        RefundRequested,
+        Disputed,
+        DisputedResolved
     }
 
     // 판매 상품 : 아이디, 이름, 설명, 가격, 판매자, 구매자, 상태
@@ -20,6 +22,7 @@ contract Market {
         address seller;
         address buyer;
         Status status;
+        uint escrow; // 예치금 = 최종 거래 금액
     }
 
     uint public itemCount; // 초기화 : 0
@@ -30,6 +33,9 @@ contract Market {
     event ItemRegistered(uint indexed id, string name, address indexed seller); // 상품 등록 기록
     event ItemStatusChanged(uint indexed id, Status newStatus); // 상태 변경 기록 
     event ItemBuyed(uint indexed id, address indexed buyer, int price); // 상품 구매 기록
+    event RefundRequested(uint indexed id, address indexed buyer); // 환불 요청 기록
+    event RefundApproved(uint indexed id, address indexed seller); // 환불 처리 기록
+    event RefundRefused(uint indexed id, address indexed seller); // 환불 거절 기록 -> 분쟁 기록
 
     // 상품 등록
     function registerItem(string memory _name, string memory _desc, uint _price) public {
@@ -43,7 +49,8 @@ contract Market {
             price:_price,
             seller:msg.sender,
             buyer:address(0),
-            status:Status.OnSale;
+            status:Status.OnSale,
+            escrow:0
         });
 
         sellerItems[msg.sender].push(itemCount); // 판매 상품
@@ -75,6 +82,7 @@ contract Market {
         require(msg.sender != item.seller, "본인의 상품을 구매할 수 없습니다.");
 
         item.buyer = msg.sender;
+        item.escrow = msg.value; // 최종 거래 금액
         item.status = Status.InTransaction;
         buyerItems[msg.sender].push(_id); // 구매자 아이템 추가
 
@@ -88,7 +96,7 @@ contract Market {
         require(item.status == Status.InTransaction, "거래 중인 상태가 아닙니다.");
         require(msg.sender == item.buyer, "구매자만 거래를 완료할 수 있습니다.");
 
-        payable(item.seller).transfer(item.price);
+        payable(item.seller).transfer(item.escrow);
         item.status = status.Completed;
 
         emit ItemStatusChanged(_id, Status.Completed);
