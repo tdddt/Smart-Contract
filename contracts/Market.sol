@@ -23,6 +23,7 @@ contract Market {
         address buyer;
         Status status;
         uint escrow; // 예치금 = 최종 거래 금액
+        uint256 rating; // 거래 별점
     }
 
     uint public itemCount; // 초기화 : 0
@@ -36,6 +37,20 @@ contract Market {
     event RefundRequested(uint indexed id, address indexed buyer); // 환불 요청 기록
     event RefundApproved(uint indexed id, address indexed seller); // 환불 처리 기록
     event RefundRefused(uint indexed id, address indexed seller); // 환불 거절 기록 -> 분쟁 기록
+    event DisputeResolved(uint indexed id, address indexed resolver, string action, string reason);
+
+    address public admin; // 분쟁 관리자
+
+    // uint public constant ADMIN_FEE_PERCENTAGE = 2; // 분쟁 해결 시 2% 수수료 고민해보기
+
+    modifier onlyAdmin(){
+        require(msg.sender == admin,"관리자만 접근 가능합니다.");
+        _;
+    }
+
+    constructor() { // 초기 관리자 설정 = 배포자
+        admin = msg.sender;
+    }
 
     // 상품 등록
     function registerItem(string memory _name, string memory _desc, uint _price) public {
@@ -82,11 +97,11 @@ contract Market {
         require(msg.sender != item.seller, "본인의 상품을 구매할 수 없습니다.");
 
         item.buyer = msg.sender;
-        item.escrow = msg.value; // 최종 거래 금액
+        item.escrow = msg.value; // 최종 거래 금액 (가스비 별도로 처리되는지 확인하기)
         item.status = Status.InTransaction;
         buyerItems[msg.sender].push(_id); // 구매자 아이템 추가
 
-        emit ItemBuyed(_id, msg.sender, item.price);
+        emit ItemBuyed(_id, msg.sender, item.escrow);
         emit ItemStatusChanged(_id, Status.InTransaction);
     }
 
@@ -96,7 +111,10 @@ contract Market {
         require(item.status == Status.InTransaction, "거래 중인 상태가 아닙니다.");
         require(msg.sender == item.buyer, "구매자만 거래를 완료할 수 있습니다.");
 
-        payable(item.seller).transfer(item.escrow);
+        (bool success, ) = item.seller.call{value: item.escrow}("");
+        require(success, "판매자에게 송금 실패");
+
+        // payable(item.seller).transfer(item.escrow);
         item.status = Status.Completed;
 
         // 평점 등록
@@ -122,8 +140,13 @@ contract Market {
         require(item.status == Status.RefundRequested,"환불 요청 상태가 아닙니다.");
         require(msg.sender == item.seller,"판매자만 환불을 승인할 수 있습니다.");
 
-        payable(item.buyer).transfer(item.escrow); // 예치금 환불 -> 가스비 문제 고려
+        (bool success, ) = item.buyer.call{value: item.escrow}("");
+        require(success, "구매자에게 환불 실패");
+
+        // payable(item.buyer).transfer(item.escrow); // 예치금 환불 -> 가스비 문제 고려
         
+        item.status = Status.Refunded;
+
         emit RefundApproved(_id, msg.sender);
         emit ItemStatusChanged(_id, Status.Refunded);
     }
