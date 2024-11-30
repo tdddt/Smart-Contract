@@ -164,4 +164,21 @@ contract Market {
     }
 
     // 분쟁 해결
+    function resolveDispute(uint _id, bool approveRefund, string memory reason) public onlyAdmin {
+        Item storage item = items[_id];
+        require(item.status == Status.Disputed, "분쟁 상태가 아닙니다. 분쟁 상태만 관리자가 관여할 수 있습니다.");
+    
+        if(approveRefund) { // 구매자에게 환불
+            (bool success, ) = item.buyer.call{value: item.escrow}("");
+            require(success, "구매자에게 환불 실패");
+            item.status = Status.Refunded;
+        } else {
+            // 판매자에게 금액 전송
+            (bool success, ) = item.seller.call{value: item.escrow}("");
+            require(success, "판매자에게 송금 실패");
+            item.status = Status.Completed;
+        }
+        emit DisputeResolved(_id, msg.sender, approveRefund ? "Refund Approved" : "Payment Released", reason);
+
+    }
 }
