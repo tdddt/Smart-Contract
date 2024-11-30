@@ -115,4 +115,16 @@ contract Market {
         emit RefundRequested(_id, msg.sender);
         emit ItemStatusChanged(_id, Status.RefundRequested);
     }
+
+    // 환불 승인
+    function approveRefund(uint _id) public {
+        Item storage item = items[_id];
+        require(item.status == Status.RefundRequested,"환불 요청 상태가 아닙니다.");
+        require(msg.sender == item.seller,"판매자만 환불을 승인할 수 있습니다.");
+
+        payable(item.buyer).transfer(item.escrow); // 예치금 환불 -> 가스비 문제 고려
+        
+        emit RefundApproved(_id, msg.sender);
+        emit ItemStatusChanged(_id, Status.Refunded);
+    }
 }
