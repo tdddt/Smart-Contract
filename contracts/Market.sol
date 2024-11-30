@@ -101,4 +101,16 @@ contract Market {
 
         emit ItemStatusChanged(_id, Status.Completed);
     }
+
+    // 환불 요청
+    function requestRefund(uint _id) public {
+        Item storage item = items[_id];
+        require(item.status == Status.InTrasaction, "거래 중인 상태가 아닙니다.");
+        require(msg.sender == item.buyer,"구매자만 환불을 요청할 수 있습니다.");
+
+        item.status = Status.Refunded;
+
+        emit RefundRequested(_id, msg.sender);
+        emit ItemStatusChanged(_id, Status.RefundRequested);
+    }
 }
