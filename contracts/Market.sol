@@ -127,4 +127,18 @@ contract Market {
         emit RefundApproved(_id, msg.sender);
         emit ItemStatusChanged(_id, Status.Refunded);
     }
+
+    // 환불 거절
+    function refuseRefund(uint _id) public {
+        Item storage item = items[_id];
+        require(item.status == Status.RefundRequested,"환불 요청 상태가 아닙니다.");
+        require(msg.sender == item.seller,"판매자만 환불을 승인할 수 있습니다.");
+
+        item.status = Status.Disputed;
+
+        emit RefundRefused(_id, msg.sender);
+        emit ItemStatusChanged(_id, Status.Disputed);
+    }
+
+    // 분쟁 해결
 }
