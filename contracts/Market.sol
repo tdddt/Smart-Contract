@@ -181,4 +181,15 @@ contract Market {
         emit DisputeResolved(_id, msg.sender, approveRefund ? "Refund Approved" : "Payment Released", reason);
 
     }
+
+    // 별점
+    function rateTransaction(uint _id, uint256 _rating) external {
+        Item storage item = items[_id];
+
+        require(msg.sender == item.buyer,"구매자만 평점을 남길 수 있습니다.");
+        require(item.status == Status.Completed || item.status == Status.Refunded || item.status == Status.DisputedResolved, "아직 평점을 남길 수 없습니다." );
+        require(_rating >=1 && _rating<=5,"평점은 1-5 사이의 숫자여야 합니다.");
+
+        item.rating = _rating;
+    }
 }
