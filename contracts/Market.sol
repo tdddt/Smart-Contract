@@ -24,6 +24,7 @@ contract Market {
         Status status;
         uint escrow; // 예치금 = 최종 거래 금액
         uint256 rating; // 거래 별점
+        bool rated; // 별점 남겼는지 여부
     }
 
     uint public itemCount; // 초기화 : 0
@@ -33,7 +34,7 @@ contract Market {
     
     event ItemRegistered(uint indexed id, string name, address indexed seller); // 상품 등록 기록
     event ItemStatusChanged(uint indexed id, Status newStatus); // 상태 변경 기록 
-    event ItemBuyed(uint indexed id, address indexed buyer, int price); // 상품 구매 기록
+    event ItemBought(uint indexed id, address indexed buyer, uint price); // 상품 구매 기록
     event RefundRequested(uint indexed id, address indexed buyer); // 환불 요청 기록
     event RefundApproved(uint indexed id, address indexed seller); // 환불 처리 기록
     event RefundRefused(uint indexed id, address indexed seller); // 환불 거절 기록 -> 분쟁 기록
@@ -44,7 +45,7 @@ contract Market {
     // uint public constant ADMIN_FEE_PERCENTAGE = 2; // 분쟁 해결 시 2% 수수료 고민해보기
 
     modifier onlyAdmin(){
-        require(msg.sender == admin,"관리자만 접근 가능합니다.");
+        require(msg.sender == admin, unicode"관리자만 접근 가능합니다.");
         _;
     }
 
@@ -54,7 +55,7 @@ contract Market {
 
     // 상품 등록
     function registerItem(string memory _name, string memory _desc, uint _price) public {
-        require(_price > 0 ,"가격은 0보다 커야 합니다.");
+        require(_price > 0 ,unicode"가격은 0보다 커야 합니다.");
 
         itemCount++; // 아이디 자동 증가 (1부터 시작)
         items[itemCount] = Item({
@@ -92,27 +93,27 @@ contract Market {
     // 상품 구매
     function buyItem(uint _id) public payable {
         Item storage item = items[_id];
-        require(item.status == Status.OnSale, "판매 중인 상품만 구매할 수 있습니다.");
-        require(msg.value >= item.price, "판매 가격보다 낮은 가격으로 구매할 수 없습니다."); // 가스비 고려
-        require(msg.sender != item.seller, "본인의 상품을 구매할 수 없습니다.");
+        require(item.status == Status.OnSale, unicode"판매 중인 상품만 구매할 수 있습니다.");
+        require(msg.value >= item.price, unicode"판매 가격보다 낮은 가격으로 구매할 수 없습니다."); // 가스비 고려
+        require(msg.sender != item.seller, unicode"본인의 상품을 구매할 수 없습니다.");
 
         item.buyer = msg.sender;
         item.escrow = msg.value; // 최종 거래 금액 (가스비 별도로 처리되는지 확인하기)
         item.status = Status.InTransaction;
         buyerItems[msg.sender].push(_id); // 구매자 아이템 추가
 
-        emit ItemBuyed(_id, msg.sender, item.escrow);
+        emit ItemBought(_id, msg.sender, item.escrow);
         emit ItemStatusChanged(_id, Status.InTransaction);
     }
 
     // 구매 확정
     function confirmItem(uint _id) public {
         Item storage item = items[_id];
-        require(item.status == Status.InTransaction, "거래 중인 상태가 아닙니다.");
-        require(msg.sender == item.buyer, "구매자만 거래를 완료할 수 있습니다.");
+        require(item.status == Status.InTransaction,unicode"거래 중인 상태가 아닙니다.");
+        require(msg.sender == item.buyer, unicode"구매자만 거래를 완료할 수 있습니다.");
 
         (bool success, ) = item.seller.call{value: item.escrow}("");
-        require(success, "판매자에게 송금 실패");
+        require(success, unicode"판매자에게 송금 실패");
 
         // payable(item.seller).transfer(item.escrow);
         item.status = Status.Completed;
@@ -125,8 +126,8 @@ contract Market {
     // 환불 요청
     function requestRefund(uint _id) public {
         Item storage item = items[_id];
-        require(item.status == Status.InTransaction, "거래 중인 상태가 아닙니다.");
-        require(msg.sender == item.buyer,"구매자만 환불을 요청할 수 있습니다.");
+        require(item.status == Status.InTransaction, unicode"거래 중인 상태가 아닙니다.");
+        require(msg.sender == item.buyer,unicode"구매자만 환불을 요청할 수 있습니다.");
 
         item.status = Status.RefundRequested;
 
@@ -137,11 +138,11 @@ contract Market {
     // 환불 승인
     function approveRefund(uint _id) public {
         Item storage item = items[_id];
-        require(item.status == Status.RefundRequested,"환불 요청 상태가 아닙니다.");
-        require(msg.sender == item.seller,"판매자만 환불을 승인할 수 있습니다.");
+        require(item.status == Status.RefundRequested,unicode"환불 요청 상태가 아닙니다.");
+        require(msg.sender == item.seller,unicode"판매자만 환불을 승인할 수 있습니다.");
 
         (bool success, ) = item.buyer.call{value: item.escrow}("");
-        require(success, "구매자에게 환불 실패");
+        require(success, unicode"구매자에게 환불 실패");
 
         // payable(item.buyer).transfer(item.escrow); // 예치금 환불 -> 가스비 문제 고려
         
@@ -154,8 +155,8 @@ contract Market {
     // 환불 거절
     function refuseRefund(uint _id) public {
         Item storage item = items[_id];
-        require(item.status == Status.RefundRequested,"환불 요청 상태가 아닙니다.");
-        require(msg.sender == item.seller,"판매자만 환불을 승인할 수 있습니다.");
+        require(item.status == Status.RefundRequested,unicode"환불 요청 상태가 아닙니다.");
+        require(msg.sender == item.seller,unicode"판매자만 환불을 승인할 수 있습니다.");
 
         item.status = Status.Disputed;
 
@@ -166,16 +167,16 @@ contract Market {
     // 분쟁 해결
     function resolveDispute(uint _id, bool approveRefund, string memory reason) public onlyAdmin {
         Item storage item = items[_id];
-        require(item.status == Status.Disputed, "분쟁 상태가 아닙니다. 분쟁 상태만 관리자가 관여할 수 있습니다.");
+        require(item.status == Status.Disputed, unicode"분쟁 상태가 아닙니다. 분쟁 상태만 관리자가 관여할 수 있습니다.");
     
         if(approveRefund) { // 구매자에게 환불
             (bool success, ) = item.buyer.call{value: item.escrow}("");
-            require(success, "구매자에게 환불 실패");
+            require(success, unicode"구매자에게 환불 실패");
             item.status = Status.Refunded;
         } else {
             // 판매자에게 금액 전송
             (bool success, ) = item.seller.call{value: item.escrow}("");
-            require(success, "판매자에게 송금 실패");
+            require(success, unicode"판매자에게 송금 실패");
             item.status = Status.Completed;
         }
         emit DisputeResolved(_id, msg.sender, approveRefund ? "Refund Approved" : "Payment Released", reason);
@@ -186,10 +187,12 @@ contract Market {
     function rateTransaction(uint _id, uint256 _rating) external {
         Item storage item = items[_id];
 
-        require(msg.sender == item.buyer,"구매자만 평점을 남길 수 있습니다.");
+        require(msg.sender == item.buyer,unicode"구매자만 평점을 남길 수 있습니다.");
         require(item.status == Status.Completed || item.status == Status.Refunded || item.status == Status.DisputedResolved, "아직 평점을 남길 수 없습니다." );
-        require(_rating >=1 && _rating<=5,"평점은 1-5 사이의 숫자여야 합니다.");
+        require(_rating >=1 && _rating<=5,unicode"평점은 1-5 사이의 숫자여야 합니다.");
+        require(!item.rated, unicode"이미 평점을 남겼습니다.");
 
         item.rating = _rating;
+        item.rated = true;
     }
 }
