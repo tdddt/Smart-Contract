@@ -79,21 +79,25 @@ contract Market {
 
     // 아이디로 상품 조회
     function getItem(uint _id) public view returns (Item memory){
+        require(_id > 0 && _id <= itemCount, unicode"존재하지 않는 상품입니다.");
         return items[_id];
     }
 
     // 판매자로 상품 조회
     function getItemBySeller(address seller) public view returns (uint[] memory) {
+        require(seller != address(0), unicode"해당 주소의 판매자를 찾을 수 없습니다.");
         return sellerItems[seller];
     }
 
     // 구매한 상품 조회
     function getItemAsBuyer(address buyer) public view returns (uint[] memory) {
+        require(buyer != address(0), unicode"해당 주소의 구매자를 찾을 수 없습니다.");
         return buyerItems[buyer];
     }
 
     // 상품 구매
     function buyItem(uint _id) public payable {
+        require(_id > 0 && _id <= itemCount, unicode"존재하지 않는 상품입니다.");
         Item storage item = items[_id];
         require(item.status == Status.OnSale, unicode"판매 중인 상품만 구매할 수 있습니다.");
         require(msg.value >= item.price, unicode"판매 가격보다 낮은 가격으로 구매할 수 없습니다."); // 가스비 고려
@@ -173,14 +177,14 @@ contract Market {
         if(approve) { // 구매자에게 환불
             (bool success, ) = item.buyer.call{value: item.escrow}("");
             require(success, unicode"구매자에게 환불 실패");
-            item.status = Status.Refunded;
+            item.status = Status.DisputedResolved;
         } else {
             // 판매자에게 금액 전송
             (bool success, ) = item.seller.call{value: item.escrow}("");
             require(success, unicode"판매자에게 송금 실패");
-            item.status = Status.Completed;
+            item.status = Status.DisputedResolved;
         }
-        emit DisputeResolved(_id, msg.sender, approve? "Refund Approved" : "Payment Released", reason);
+        emit DisputeResolved(_id, msg.sender, approve? "Refunded" : "Completed", reason);
     }
 
     // // 별점
