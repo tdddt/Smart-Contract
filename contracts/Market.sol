@@ -38,7 +38,7 @@ contract Market {
     event RefundRequested(uint indexed id, address indexed buyer); // 환불 요청 기록
     event RefundApproved(uint indexed id, address indexed seller); // 환불 처리 기록
     event RefundRefused(uint indexed id, address indexed seller); // 환불 거절 기록 -> 분쟁 기록
-    event DisputeResolved(uint indexed id, address indexed resolver, string action, string reason);
+    event DisputeResolved(uint indexed id, address indexed resolver, string action, string reason); // 분쟁 해결 기록
 
     address public admin; // 분쟁 관리자
 
@@ -66,7 +66,9 @@ contract Market {
             seller:msg.sender,
             buyer:address(0),
             status:Status.OnSale,
-            escrow:0
+            escrow:0,
+            rating:0,
+            rated:false
         });
 
         sellerItems[msg.sender].push(itemCount); // 판매 상품
@@ -119,7 +121,6 @@ contract Market {
         item.status = Status.Completed;
 
         // 평점 등록
-
         emit ItemStatusChanged(_id, Status.Completed);
     }
 
@@ -165,11 +166,11 @@ contract Market {
     }
 
     // 분쟁 해결
-    function resolveDispute(uint _id, bool approveRefund, string memory reason) public onlyAdmin {
+    function resolveDispute(uint _id, bool approve, string memory reason) public onlyAdmin {
         Item storage item = items[_id];
         require(item.status == Status.Disputed, unicode"분쟁 상태가 아닙니다. 분쟁 상태만 관리자가 관여할 수 있습니다.");
     
-        if(approveRefund) { // 구매자에게 환불
+        if(approve) { // 구매자에게 환불
             (bool success, ) = item.buyer.call{value: item.escrow}("");
             require(success, unicode"구매자에게 환불 실패");
             item.status = Status.Refunded;
@@ -179,20 +180,19 @@ contract Market {
             require(success, unicode"판매자에게 송금 실패");
             item.status = Status.Completed;
         }
-        emit DisputeResolved(_id, msg.sender, approveRefund ? "Refund Approved" : "Payment Released", reason);
-
+        emit DisputeResolved(_id, msg.sender, approve? "Refund Approved" : "Payment Released", reason);
     }
 
-    // 별점
-    function rateTransaction(uint _id, uint256 _rating) external {
-        Item storage item = items[_id];
+    // // 별점
+    // function rateTransaction(uint _id, uint256 _rating) external {
+    //     Item storage item = items[_id];
 
-        require(msg.sender == item.buyer,unicode"구매자만 평점을 남길 수 있습니다.");
-        require(item.status == Status.Completed || item.status == Status.Refunded || item.status == Status.DisputedResolved, "아직 평점을 남길 수 없습니다." );
-        require(_rating >=1 && _rating<=5,unicode"평점은 1-5 사이의 숫자여야 합니다.");
-        require(!item.rated, unicode"이미 평점을 남겼습니다.");
+    //     require(msg.sender == item.buyer,unicode"구매자만 평점을 남길 수 있습니다.");
+    //     require(item.status == Status.Completed || item.status == Status.Refunded || item.status == Status.DisputedResolved, "아직 평점을 남길 수 없습니다." );
+    //     require(_rating >=1 && _rating<=5,unicode"평점은 1-5 사이의 숫자여야 합니다.");
+    //     require(item.rated==false, unicode"이미 평점을 남겼습니다.");
 
-        item.rating = _rating;
-        item.rated = true;
-    }
+    //     item.rating = _rating;
+    //     item.rated = true;
+    // }
 }
