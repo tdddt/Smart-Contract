@@ -43,7 +43,7 @@ contract Market {
     event ItemBought(uint256 indexed id, address indexed buyer, uint256 price); // 상품 구매 기록
     event RefundRequested(uint256 indexed id, address indexed buyer); // 환불 요청 기록
     event RefundApproved(uint256 indexed id, address indexed seller); // 환불 처리 기록
-    event RefundRefused(uint256 indexed id, address indexed seller); // 환불 거절 기록 -> 분쟁 기록
+    event RefundRefused(uint256 indexed id, address indexed seller, string reason); // 환불 거절 기록 -> 분쟁 기록
     event DisputeResolved(uint256 indexed id, address indexed resolver, string action, string reason); // 분쟁 해결 기록
 
     address public admin; // 분쟁 관리자
@@ -164,14 +164,15 @@ contract Market {
     }
 
     // 환불 거절
-    function refuseRefund(uint256 _id) public {
+    function refuseRefund(uint256 _id, string memory reason) public {
         Item storage item = items[_id];
         require(item.status == Status.RefundRequested,unicode"환불 요청 상태가 아닙니다.");
         require(msg.sender == item.seller,unicode"판매자만 환불을 승인할 수 있습니다.");
+        require(bytes(reason).length > 0, unicode"환불 거절 사유를 입력해야 합니다.");
 
         item.status = Status.Disputed;
 
-        emit RefundRefused(_id, msg.sender);
+        emit RefundRefused(_id, msg.sender,reason);
         emit ItemStatusChanged(_id, Status.Disputed);
     }
 
