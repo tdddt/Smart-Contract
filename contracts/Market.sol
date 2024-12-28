@@ -55,6 +55,7 @@ contract Market {
 
     // 상품 등록
     function registerItem(string memory _name, string memory _desc, uint256 _price) public {
+        require(bytes(_name).length > 0, unicode"상품 이름을 입력해야 합니다.");
         require(_price > 0 ,unicode"가격은 0보다 커야 합니다.");
 
         itemCount++; // 아이디 자동 증가 (1부터 시작)
