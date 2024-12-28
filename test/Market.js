@@ -99,16 +99,18 @@ describe("Market Contract", function () {
     });
   });
 
-  // 존재하지 않는 아이템 구매 시도
-  describe("Non-existent Item Purchase", function () {
+  // 존재하지 않는 아이템
+  describe("Non-existent Item", function () {
+    // 존재하지 않는 아이템 구매 시도
     it("Should fail when trying to buy a non-existent item", async function () {
       // Trying to buy an item with ID 999 which doesn't exist
       await expect(market.connect(buyer).buyItem(999, { value: 100 }))
         .to.be.revertedWith("존재하지 않는 상품입니다.");
     });
   
+    // 존재하지 않는 아이템 환불 시도
     it("Should fail when trying to request refund for a non-existent item", async function () {
-      await expect(market.connect(buyer).requestRefund(999))
+      await expect(market.connect(buyer).requestRefund(999,"The item is broken"))
         .to.be.reverted; // The specific revert reason depends on the contract's implementation
     });
   });
@@ -150,20 +152,20 @@ describe("Market Contract", function () {
     });
 
     it("Should allow buyer to request refund", async function () {
-      await market.connect(buyer).requestRefund(1);
+      await market.connect(buyer).requestRefund(1, "The item is broken.");
 
       const item = await market.getItem(1);
       expect(item.status).to.equal(4); // RefundRequested
     });
 
     it("Should emit RefundRequested event on refund request", async function () {
-      await expect(market.connect(buyer).requestRefund(1))
+      await expect(market.connect(buyer).requestRefund(1, "The item is broken."))
         .to.emit(market, "RefundRequested")
-        .withArgs(1, buyer.address);
+        .withArgs(1, buyer.address,"The item is broken.");
     });
 
     it("Should fail if the refund is requested when not in transaction", async function () {
-      await expect(market.connect(buyer).requestRefund(2))
+      await expect(market.connect(buyer).requestRefund(2, "The item is broken."))
         .to.be.revertedWith("거래 중인 상태가 아닙니다.");
     });
   });
@@ -173,7 +175,7 @@ describe("Market Contract", function () {
     beforeEach(async function () {
       await market.connect(seller).registerItem("Item1", "Description", 100);
       await market.connect(buyer).buyItem(1, { value: 100 });
-      await market.connect(buyer).requestRefund(1);
+      await market.connect(buyer).requestRefund(1, "The item is broken.");
     });
 
     it("Should allow seller to approve refund", async function () {
@@ -200,24 +202,24 @@ describe("Market Contract", function () {
     beforeEach(async function () {
       await market.connect(seller).registerItem("Item1", "Description", 100);
       await market.connect(buyer).buyItem(1, { value: 100 });
-      await market.connect(buyer).requestRefund(1);
+      await market.connect(buyer).requestRefund(1, "The item is broken.");
     });
   
     it("Should allow seller to refuse refund", async function () {
-      await market.connect(seller).refuseRefund(1);
+      await market.connect(seller).refuseRefund(1,"There was no problem before deliver.");
   
       const item = await market.getItem(1);
       expect(item.status).to.equal(5); // Disputed
     });
   
     it("Should emit RefundRefused event on refund refusal", async function () {
-      await expect(market.connect(seller).refuseRefund(1))
+      await expect(market.connect(seller).refuseRefund(1,"There was no problem before deliver."))
         .to.emit(market, "RefundRefused")
-        .withArgs(1, seller.address);
+        .withArgs(1, seller.address, "There was no problem before deliver.");
     });
   
     it("Should fail if not called by seller", async function () {
-      await expect(market.connect(buyer).refuseRefund(1))
+      await expect(market.connect(buyer).refuseRefund(1,"There was no problem before deliver."))
         .to.be.revertedWith("판매자만 환불을 승인할 수 있습니다.");
     });
   
@@ -225,12 +227,12 @@ describe("Market Contract", function () {
       await market.connect(seller).registerItem("Item2", "Description", 200);
       await market.connect(buyer).buyItem(2, { value: 200 });
   
-      await expect(market.connect(seller).refuseRefund(2))
+      await expect(market.connect(seller).refuseRefund(2,"There was no problem before deliver."))
         .to.be.revertedWith("환불 요청 상태가 아닙니다.");
     });
   
     it("Should change item status to Disputed after refund refusal", async function () {
-      await market.connect(seller).refuseRefund(1);
+      await market.connect(seller).refuseRefund(1,"There was no problem before deliver.");
   
       await expect(market.connect(admin).resolveDispute(1, true, "Test Dispute"))
         .to.emit(market, "DisputeResolved")
@@ -244,8 +246,8 @@ describe("Market Contract", function () {
       // 아이템 등록 및 구매, 환불 요청, 환불 거절
       await market.connect(seller).registerItem("Item1", "Description", 100);
       await market.connect(buyer).buyItem(1, { value: 100 });
-      await market.connect(buyer).requestRefund(1);
-      await market.connect(seller).refuseRefund(1);
+      await market.connect(buyer).requestRefund(1, "The item is broken.");
+      await market.connect(seller).refuseRefund(1, "There was no problem before deliver.");
     });
   
     it("Should allow admin to resolve dispute and approve refund", async function () {
