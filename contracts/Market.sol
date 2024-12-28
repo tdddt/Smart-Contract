@@ -28,8 +28,14 @@ contract Market {
     }
 
     uint256 public itemCount; // 초기화 : 0
+
+    // itemId(상품 Id) => Item(상품 정보)
     mapping(uint256 => Item) public items;
+
+    // seller address(판매자 주소) => itemIds(판매한 상품 아이디)
     mapping(address => uint256[]) public sellerItems; // 판매한 상품
+
+    // buyer address(구매자 주소) => itemIds(구매한 상품 아이디)
     mapping(address => uint256[]) public buyerItems; // 구매한 상품
     
     event ItemRegistered(uint256 indexed id, string name, address indexed seller); // 상품 등록 기록
