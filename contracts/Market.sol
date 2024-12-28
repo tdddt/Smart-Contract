@@ -15,30 +15,30 @@ contract Market {
 
     // 판매 상품 : 아이디, 이름, 설명, 가격, 판매자, 구매자, 상태
     struct Item {
-        uint id; // 아이디 자동 증가
+        uint256 id; // 아이디 자동 증가
         string name;
         string desc;
-        uint price;
+        uint256 price;
         address seller;
         address buyer;
         Status status;
-        uint escrow; // 예치금 = 최종 거래 금액
+        uint256 escrow; // 예치금 = 최종 거래 금액
         uint256 rating; // 거래 별점
         bool rated; // 별점 남겼는지 여부
     }
 
-    uint public itemCount; // 초기화 : 0
-    mapping(uint => Item) public items;
-    mapping(address => uint[]) public sellerItems; // 판매한 상품
-    mapping(address => uint[]) public buyerItems; // 구매한 상품
+    uint256 public itemCount; // 초기화 : 0
+    mapping(uint256 => Item) public items;
+    mapping(address => uint256[]) public sellerItems; // 판매한 상품
+    mapping(address => uint256[]) public buyerItems; // 구매한 상품
     
-    event ItemRegistered(uint indexed id, string name, address indexed seller); // 상품 등록 기록
-    event ItemStatusChanged(uint indexed id, Status newStatus); // 상태 변경 기록 
-    event ItemBought(uint indexed id, address indexed buyer, uint price); // 상품 구매 기록
-    event RefundRequested(uint indexed id, address indexed buyer); // 환불 요청 기록
-    event RefundApproved(uint indexed id, address indexed seller); // 환불 처리 기록
-    event RefundRefused(uint indexed id, address indexed seller); // 환불 거절 기록 -> 분쟁 기록
-    event DisputeResolved(uint indexed id, address indexed resolver, string action, string reason); // 분쟁 해결 기록
+    event ItemRegistered(uint256 indexed id, string name, address indexed seller); // 상품 등록 기록
+    event ItemStatusChanged(uint256 indexed id, Status newStatus); // 상태 변경 기록 
+    event ItemBought(uint256 indexed id, address indexed buyer, uint256 price); // 상품 구매 기록
+    event RefundRequested(uint256 indexed id, address indexed buyer); // 환불 요청 기록
+    event RefundApproved(uint256 indexed id, address indexed seller); // 환불 처리 기록
+    event RefundRefused(uint256 indexed id, address indexed seller); // 환불 거절 기록 -> 분쟁 기록
+    event DisputeResolved(uint256 indexed id, address indexed resolver, string action, string reason); // 분쟁 해결 기록
 
     address public admin; // 분쟁 관리자
 
@@ -54,7 +54,7 @@ contract Market {
     }
 
     // 상품 등록
-    function registerItem(string memory _name, string memory _desc, uint _price) public {
+    function registerItem(string memory _name, string memory _desc, uint256 _price) public {
         require(_price > 0 ,unicode"가격은 0보다 커야 합니다.");
 
         itemCount++; // 아이디 자동 증가 (1부터 시작)
@@ -78,25 +78,25 @@ contract Market {
     }
 
     // 아이디로 상품 조회
-    function getItem(uint _id) public view returns (Item memory){
+    function getItem(uint256 _id) public view returns (Item memory){
         require(_id > 0 && _id <= itemCount, unicode"존재하지 않는 상품입니다.");
         return items[_id];
     }
 
     // 판매자로 상품 조회
-    function getItemBySeller(address seller) public view returns (uint[] memory) {
+    function getItemBySeller(address seller) public view returns (uint256[] memory) {
         require(seller != address(0), unicode"해당 주소의 판매자를 찾을 수 없습니다.");
         return sellerItems[seller];
     }
 
     // 구매한 상품 조회
-    function getItemAsBuyer(address buyer) public view returns (uint[] memory) {
+    function getItemAsBuyer(address buyer) public view returns (uint256[] memory) {
         require(buyer != address(0), unicode"해당 주소의 구매자를 찾을 수 없습니다.");
         return buyerItems[buyer];
     }
 
     // 상품 구매
-    function buyItem(uint _id) public payable {
+    function buyItem(uint256 _id) public payable {
         require(_id > 0 && _id <= itemCount, unicode"존재하지 않는 상품입니다.");
         Item storage item = items[_id];
         require(item.status == Status.OnSale, unicode"판매 중인 상품만 구매할 수 있습니다.");
@@ -113,7 +113,7 @@ contract Market {
     }
 
     // 구매 확정
-    function confirmItem(uint _id) public {
+    function confirmItem(uint256 _id) public {
         Item storage item = items[_id];
         require(item.status == Status.InTransaction,unicode"거래 중인 상태가 아닙니다.");
         require(msg.sender == item.buyer, unicode"구매자만 거래를 완료할 수 있습니다.");
@@ -129,7 +129,7 @@ contract Market {
     }
 
     // 환불 요청
-    function requestRefund(uint _id) public {
+    function requestRefund(uint256 _id) public {
         Item storage item = items[_id];
         require(item.status == Status.InTransaction, unicode"거래 중인 상태가 아닙니다.");
         require(msg.sender == item.buyer,unicode"구매자만 환불을 요청할 수 있습니다.");
@@ -141,7 +141,7 @@ contract Market {
     }
 
     // 환불 승인
-    function approveRefund(uint _id) public {
+    function approveRefund(uint256 _id) public {
         Item storage item = items[_id];
         require(item.status == Status.RefundRequested,unicode"환불 요청 상태가 아닙니다.");
         require(msg.sender == item.seller,unicode"판매자만 환불을 승인할 수 있습니다.");
@@ -158,7 +158,7 @@ contract Market {
     }
 
     // 환불 거절
-    function refuseRefund(uint _id) public {
+    function refuseRefund(uint256 _id) public {
         Item storage item = items[_id];
         require(item.status == Status.RefundRequested,unicode"환불 요청 상태가 아닙니다.");
         require(msg.sender == item.seller,unicode"판매자만 환불을 승인할 수 있습니다.");
@@ -170,7 +170,7 @@ contract Market {
     }
 
     // 분쟁 해결
-    function resolveDispute(uint _id, bool approve, string memory reason) public onlyAdmin {
+    function resolveDispute(uint256 _id, bool approve, string memory reason) public onlyAdmin {
         Item storage item = items[_id];
         require(item.status == Status.Disputed, unicode"분쟁 상태가 아닙니다. 분쟁 상태만 관리자가 관여할 수 있습니다.");
     
