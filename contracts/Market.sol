@@ -125,11 +125,11 @@ contract Market {
         require(item.status == Status.InTransaction,unicode"거래 중인 상태가 아닙니다.");
         require(msg.sender == item.buyer, unicode"구매자만 거래를 완료할 수 있습니다.");
 
-        (bool success, ) = item.seller.call{value: item.escrow}("");
-        require(success, unicode"판매자에게 송금 실패");
-
         // payable(item.seller).transfer(item.escrow);
         item.status = Status.Completed;
+
+        (bool success, ) = item.seller.call{value: item.escrow}("");
+        require(success, unicode"판매자에게 송금 실패");
 
         // 평점 등록
         emit ItemStatusChanged(_id, Status.Completed);
@@ -153,12 +153,11 @@ contract Market {
         require(item.status == Status.RefundRequested,unicode"환불 요청 상태가 아닙니다.");
         require(msg.sender == item.seller,unicode"판매자만 환불을 승인할 수 있습니다.");
 
+        // payable(item.buyer).transfer(item.escrow); // 예치금 환불 -> 가스비 문제 고려
+        item.status = Status.Refunded;
+
         (bool success, ) = item.buyer.call{value: item.escrow}("");
         require(success, unicode"구매자에게 환불 실패");
-
-        // payable(item.buyer).transfer(item.escrow); // 예치금 환불 -> 가스비 문제 고려
-        
-        item.status = Status.Refunded;
 
         emit RefundApproved(_id, msg.sender);
         emit ItemStatusChanged(_id, Status.Refunded);
@@ -182,14 +181,13 @@ contract Market {
         require(item.status == Status.Disputed, unicode"분쟁 상태가 아닙니다. 분쟁 상태만 관리자가 관여할 수 있습니다.");
     
         if(approve) { // 구매자에게 환불
+            item.status = Status.DisputedResolved;
             (bool success, ) = item.buyer.call{value: item.escrow}("");
             require(success, unicode"구매자에게 환불 실패");
+        } else { // 판매자에게 금액 전송
             item.status = Status.DisputedResolved;
-        } else {
-            // 판매자에게 금액 전송
             (bool success, ) = item.seller.call{value: item.escrow}("");
             require(success, unicode"판매자에게 송금 실패");
-            item.status = Status.DisputedResolved;
         }
         emit DisputeResolved(_id, msg.sender, approve? "Refunded" : "Completed", reason);
     }
